@@ -4,6 +4,13 @@ import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/dbConnect";
 import UserModel from "@/model/User";
 
+type AuthUser = {
+    _id?: string;
+    isVerified?: boolean;
+    isAcceptingMessages?: boolean;
+    username?: string;
+};
+
 export const authOptions : NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -42,12 +49,28 @@ export const authOptions : NextAuthOptions = {
         })
     ],
     callbacks: {
-        async session({ session, user, token }) {
-            return session
+        async jwt({ token, user }) {
+            if (user) {
+                const authUser = user as AuthUser;
+                token._id = authUser._id?.toString();
+                token.isVerified = authUser.isVerified;
+                token.isAcceptingMessages = authUser.isAcceptingMessages;
+                token.username = authUser.username;
+            }
+            return token;
         },
-        async jwt({ token, user, account, profile, isNewUser }) {
-            return token
-        }
+        async session({ session, token }) {
+            if (token) {
+                session.user = {
+                    ...session.user,
+                    _id: token._id,
+                    isVerified: token.isVerified,
+                    isAcceptingMessages: token.isAcceptingMessages,
+                    username: token.username,
+                };
+            }
+            return session; 
+        },  
     },
     pages: {
         signIn: '/signin',
